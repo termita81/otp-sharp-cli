@@ -107,7 +107,7 @@ class Program
         }
 
         Console.WriteLine("\nCommands:");
-        Console.WriteLine("  [a]dd account  [d]elete account  [r]efresh  [q]uit");
+        Console.WriteLine("  [a]dd account  [d]elete account  [c]opy code  [r]efresh  [q]uit");
         if (accounts.Count > 0)
         {
             Console.WriteLine($"  [1-{accounts.Count}] show/hide specific account code");
@@ -131,6 +131,16 @@ class Program
             case 'd':
                 RemoveAccount(storage);
                 visibleCodeIndex = -1; // Hide any visible code after removing account
+                return false;
+            case 'c':
+                if (CopyCodeToClipboard(accounts, visibleCodeIndex))
+                {
+                    ShowTemporaryMessage("📋 Code copied to clipboard!");
+                }
+                else
+                {
+                    ShowTemporaryMessage("❌ No code visible to copy");
+                }
                 return false;
             case 'r':
                 visibleCodeIndex = -1; // Hide any visible code on refresh
@@ -357,5 +367,59 @@ class Program
         {
             // Fallback if console operations fail
         }
+    }
+
+    static bool CopyCodeToClipboard(List<OtpAccount> accounts, int visibleCodeIndex)
+    {
+        if (visibleCodeIndex < 0 || visibleCodeIndex >= accounts.Count)
+        {
+            return false; // No code is visible or invalid index
+        }
+
+        try
+        {
+            var code = TotpGenerator.GenerateCode(accounts[visibleCodeIndex].Secret);
+
+            // Use Windows clipboard API
+            var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "clip",
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            process.StandardInput.Write(code);
+            process.StandardInput.Close();
+            process.WaitForExit();
+
+            return process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void ShowTemporaryMessage(string message)
+    {
+        // Save current cursor position
+        var originalLeft = Console.CursorLeft;
+        var originalTop = Console.CursorTop;
+
+        // Show message at bottom of screen
+        Console.SetCursorPosition(0, Console.WindowHeight - 2);
+        Console.Write(new string(' ', Console.WindowWidth - 1)); // Clear line
+        Console.SetCursorPosition(0, Console.WindowHeight - 2);
+        Console.Write(message);
+
+        // Restore cursor position
+        Console.SetCursorPosition(originalLeft, originalTop);
+
+        // Message will be cleared on next refresh
     }
 }
