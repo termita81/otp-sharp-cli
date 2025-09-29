@@ -42,6 +42,8 @@ class Program
     {
         var inputBuffer = new StringBuilder();
         var lastRefresh = DateTime.MinValue;
+        var visibleCodeIndex = -1; // -1 means no code is visible
+        var codeVisibleSince = DateTime.MinValue;
 
         // Initial clear and setup
         Console.Clear();
@@ -51,10 +53,16 @@ class Program
         {
             var now = DateTime.Now;
 
+            // Auto-hide code after 10 seconds
+            if (visibleCodeIndex >= 0 && (now - codeVisibleSince).TotalSeconds >= 10)
+            {
+                visibleCodeIndex = -1;
+            }
+
             // Refresh display every second
             if ((now - lastRefresh).TotalSeconds >= 1)
             {
-                RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
                 lastRefresh = now;
             }
 
@@ -68,7 +76,8 @@ class Program
                     var input = inputBuffer.ToString().Trim().ToLower();
                     inputBuffer.Clear();
 
-                    if (HandleUserInput(input, storage, databaseFile))
+                    var result = HandleUserInput(input, storage, databaseFile, ref visibleCodeIndex, ref codeVisibleSince);
+                    if (result)
                     {
                         Console.CursorVisible = true;
                         return; // Exit application
@@ -76,7 +85,7 @@ class Program
 
                     // Force immediate refresh after command
                     Console.CursorVisible = false;
-                    RefreshMainDisplay(storage, databaseFile, "");
+                    RefreshMainDisplay(storage, databaseFile, "", visibleCodeIndex);
                     lastRefresh = DateTime.Now;
                 }
                 else if (keyInfo.Key == ConsoleKey.Backspace)
@@ -84,14 +93,14 @@ class Program
                     if (inputBuffer.Length > 0)
                     {
                         inputBuffer.Length--;
-                        RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                        RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
                         lastRefresh = DateTime.Now;
                     }
                 }
                 else if (!char.IsControl(keyInfo.KeyChar))
                 {
                     inputBuffer.Append(keyInfo.KeyChar);
-                    RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                    RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
                     lastRefresh = DateTime.Now;
                 }
             }
@@ -100,7 +109,7 @@ class Program
         }
     }
 
-    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, string currentInput)
+    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, string currentInput, int visibleCodeIndex = -1)
     {
         Console.SetCursorPosition(0, 0);
         Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
@@ -116,14 +125,14 @@ class Program
         }
         else
         {
-            DisplayAccountList(accounts);
+            DisplayAccountList(accounts, visibleCodeIndex);
         }
 
         Console.WriteLine("\nCommands:");
-        Console.WriteLine("  [a]dd account  [d]elete account  [v]iew codes  [r]efresh  [q]uit");
+        Console.WriteLine("  [a]dd account  [d]elete account  [r]efresh  [q]uit");
         if (accounts.Count > 0)
         {
-            Console.WriteLine($"  [1-{accounts.Count}] view specific account code");
+            Console.WriteLine($"  [1-{accounts.Count}] show/hide specific account code");
         }
         Console.Write($"\nChoice: {currentInput}");
 
@@ -131,7 +140,7 @@ class Program
         ClearToEndOfConsole();
     }
 
-    static bool HandleUserInput(string input, AccountStorage storage, string databaseFile)
+    static bool HandleUserInput(string input, AccountStorage storage, string databaseFile, ref int visibleCodeIndex, ref DateTime codeVisibleSince)
     {
         var accounts = storage.LoadAccounts();
 
@@ -139,14 +148,17 @@ class Program
         {
             case "a":
                 AddAccount(storage);
+                visibleCodeIndex = -1; // Hide any visible code after adding account
                 return false;
             case "d":
                 RemoveAccount(storage);
+                visibleCodeIndex = -1; // Hide any visible code after removing account
                 return false;
             case "v":
-                ViewCodes(accounts);
+                visibleCodeIndex = -1; // Hide any visible code
                 return false;
             case "r":
+                visibleCodeIndex = -1; // Hide any visible code on refresh
                 return false; // Just refresh
             case "q":
                 return true; // Exit
@@ -155,7 +167,18 @@ class Program
                 if (int.TryParse(input, out int accountIndex) &&
                     accountIndex >= 1 && accountIndex <= accounts.Count)
                 {
-                    ShowSingleCode(accounts[accountIndex - 1]);
+                    int targetIndex = accountIndex - 1;
+
+                    // Toggle: if this code is already visible, hide it; otherwise show it
+                    if (visibleCodeIndex == targetIndex)
+                    {
+                        visibleCodeIndex = -1; // Hide the code
+                    }
+                    else
+                    {
+                        visibleCodeIndex = targetIndex; // Show this code
+                        codeVisibleSince = DateTime.Now;
+                    }
                 }
                 return false;
         }
@@ -195,164 +218,35 @@ class Program
         return password.ToString();
     }
 
-    static void DisplayAccountList(List<OtpAccount> accounts)
+    static void DisplayAccountList(List<OtpAccount> accounts, int visibleCodeIndex = -1)
     {
         var remaining = TotpGenerator.GetRemainingSeconds();
         Console.WriteLine($"Time remaining: {remaining,2}s\n");
-        Console.WriteLine("Accounts (codes hidden for security):");
+        Console.WriteLine("Accounts:");
 
         for (int i = 0; i < accounts.Count; i++)
         {
-            Console.WriteLine($"{i + 1}. {accounts[i].Name.PadRight(20)} ●●●●●●");
-        }
-    }
+            var accountName = accounts[i].Name.PadRight(20);
 
-    static void ViewCodes(List<OtpAccount> accounts)
-    {
-        if (accounts.Count == 0)
-        {
-            Console.WriteLine("\nNo accounts to view.");
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey();
-            return;
-        }
-
-        while (true)
-        {
-            Console.Clear();
-            Console.WriteLine("🔐 OTP Sharp - View Codes");
-            Console.WriteLine("========================");
-
-            var remaining = TotpGenerator.GetRemainingSeconds();
-            Console.WriteLine($"Time remaining: {remaining,2}s\n");
-
-            Console.WriteLine("Select account to view code (codes auto-hide after 10 seconds):");
-            for (int i = 0; i < accounts.Count; i++)
+            if (visibleCodeIndex == i)
             {
-                Console.WriteLine($"{i + 1}. {accounts[i].Name}");
-            }
-
-            Console.WriteLine("\n0. Back to main menu");
-            Console.Write($"\nEnter number (1-{accounts.Count}) or 0 to go back: ");
-
-            var input = Console.ReadLine();
-
-            if (int.TryParse(input, out int choice))
-            {
-                if (choice == 0)
+                try
                 {
-                    return;
+                    var code = TotpGenerator.GenerateCode(accounts[i].Secret);
+                    Console.WriteLine($"{i + 1}. {accountName} {code}");
                 }
-                else if (choice >= 1 && choice <= accounts.Count)
+                catch
                 {
-                    ShowSingleCode(accounts[choice - 1]);
-                }
-                else
-                {
-                    Console.WriteLine("❌ Invalid selection. Press any key to try again...");
-                    Console.ReadKey();
+                    Console.WriteLine($"{i + 1}. {accountName} ERROR");
                 }
             }
             else
             {
-                Console.WriteLine("❌ Invalid input. Press any key to try again...");
-                Console.ReadKey();
+                Console.WriteLine($"{i + 1}. {accountName} ●●●●●●");
             }
         }
     }
 
-    static void ShowSingleCode(OtpAccount account)
-    {
-        var startTime = DateTime.Now;
-        var lastRefresh = DateTime.MinValue;
-        var lastCode = "";
-        var lastRemaining = 0;
-        var isFirstDisplay = true;
-
-        while (true)
-        {
-            var now = DateTime.Now;
-            var elapsed = (now - startTime).TotalSeconds;
-
-            // Auto-hide after 10 seconds
-            if (elapsed >= 10)
-            {
-                break;
-            }
-
-            // Refresh display every second or when code changes
-            if ((now - lastRefresh).TotalSeconds >= 1)
-            {
-                try
-                {
-                    var code = TotpGenerator.GenerateCode(account.Secret);
-                    var remaining = TotpGenerator.GetRemainingSeconds();
-                    var hideIn = Math.Max(0, 10 - (int)elapsed);
-
-                    // Only clear and redraw if something changed or first display
-                    if (code != lastCode || remaining != lastRemaining || isFirstDisplay)
-                    {
-                        if (isFirstDisplay)
-                        {
-                            Console.Clear();
-                            Console.CursorVisible = false;
-                            isFirstDisplay = false;
-                        }
-                        else
-                        {
-                            Console.SetCursorPosition(0, 0);
-                        }
-
-                        Console.WriteLine("🔐 OTP Sharp - Code Display");
-                        Console.WriteLine("===========================\n");
-
-                        Console.WriteLine($"Account: {account.Name}");
-                        Console.WriteLine($"Code:    {code}");
-                        Console.WriteLine($"Time remaining: {remaining,2}s\n");
-
-                        Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...");
-                        Console.WriteLine("Press any key to hide immediately and return.");
-
-                        ClearToEndOfConsole();
-
-                        lastCode = code;
-                        lastRemaining = remaining;
-                    }
-                    else if (hideIn != Math.Max(0, 10 - (int)(DateTime.Now - startTime).TotalSeconds))
-                    {
-                        // Update just the hide countdown without full refresh
-                        Console.SetCursorPosition(0, 7);
-                        Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...           ");
-                    }
-                }
-                catch
-                {
-                    Console.Clear();
-                    Console.WriteLine("🔐 OTP Sharp - Code Display");
-                    Console.WriteLine("===========================\n");
-                    Console.WriteLine($"Account: {account.Name}");
-                    Console.WriteLine($"Code:    ERROR");
-                    Console.WriteLine("\n❌ Failed to generate code. Invalid secret key.");
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey();
-                    return;
-                }
-
-                lastRefresh = now;
-            }
-
-            // Check for key press to exit immediately
-            if (Console.KeyAvailable)
-            {
-                Console.ReadKey(true);
-                break;
-            }
-
-            Thread.Sleep(100);
-        }
-
-        Console.CursorVisible = true;
-    }
 
     static void AddAccount(AccountStorage storage)
     {
