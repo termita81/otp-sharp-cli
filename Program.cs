@@ -43,6 +43,10 @@ class Program
         var inputBuffer = new StringBuilder();
         var lastRefresh = DateTime.MinValue;
 
+        // Initial clear and setup
+        Console.Clear();
+        Console.CursorVisible = false;
+
         while (true)
         {
             var now = DateTime.Now;
@@ -66,10 +70,12 @@ class Program
 
                     if (HandleUserInput(input, storage, databaseFile))
                     {
+                        Console.CursorVisible = true;
                         return; // Exit application
                     }
 
                     // Force immediate refresh after command
+                    Console.CursorVisible = false;
                     RefreshMainDisplay(storage, databaseFile, "");
                     lastRefresh = DateTime.Now;
                 }
@@ -96,7 +102,7 @@ class Program
 
     static void RefreshMainDisplay(AccountStorage storage, string databaseFile, string currentInput)
     {
-        Console.Clear();
+        Console.SetCursorPosition(0, 0);
         Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
         Console.WriteLine("==========================================");
 
@@ -120,6 +126,9 @@ class Program
             Console.WriteLine($"  [1-{accounts.Count}] view specific account code");
         }
         Console.Write($"\nChoice: {currentInput}");
+
+        // Clear any remaining content from previous display
+        ClearToEndOfConsole();
     }
 
     static bool HandleUserInput(string input, AccountStorage storage, string databaseFile)
@@ -258,6 +267,7 @@ class Program
         var lastRefresh = DateTime.MinValue;
         var lastCode = "";
         var lastRemaining = 0;
+        var isFirstDisplay = true;
 
         while (true)
         {
@@ -277,11 +287,22 @@ class Program
                 {
                     var code = TotpGenerator.GenerateCode(account.Secret);
                     var remaining = TotpGenerator.GetRemainingSeconds();
+                    var hideIn = Math.Max(0, 10 - (int)elapsed);
 
-                    // Only clear and redraw if something changed
-                    if (code != lastCode || remaining != lastRemaining)
+                    // Only clear and redraw if something changed or first display
+                    if (code != lastCode || remaining != lastRemaining || isFirstDisplay)
                     {
-                        Console.Clear();
+                        if (isFirstDisplay)
+                        {
+                            Console.Clear();
+                            Console.CursorVisible = false;
+                            isFirstDisplay = false;
+                        }
+                        else
+                        {
+                            Console.SetCursorPosition(0, 0);
+                        }
+
                         Console.WriteLine("🔐 OTP Sharp - Code Display");
                         Console.WriteLine("===========================\n");
 
@@ -289,12 +310,19 @@ class Program
                         Console.WriteLine($"Code:    {code}");
                         Console.WriteLine($"Time remaining: {remaining}s\n");
 
-                        var hideIn = Math.Max(0, 10 - (int)elapsed);
                         Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...");
                         Console.WriteLine("Press any key to hide immediately and return.");
 
+                        ClearToEndOfConsole();
+
                         lastCode = code;
                         lastRemaining = remaining;
+                    }
+                    else if (hideIn != Math.Max(0, 10 - (int)(DateTime.Now - startTime).TotalSeconds))
+                    {
+                        // Update just the hide countdown without full refresh
+                        Console.SetCursorPosition(0, 7);
+                        Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...           ");
                     }
                 }
                 catch
@@ -322,6 +350,8 @@ class Program
 
             Thread.Sleep(100);
         }
+
+        Console.CursorVisible = true;
     }
 
     static void AddAccount(AccountStorage storage)
@@ -434,5 +464,26 @@ class Program
 
         Console.WriteLine("Press any key to continue...");
         Console.ReadKey();
+    }
+
+    static void ClearToEndOfConsole()
+    {
+        try
+        {
+            var currentTop = Console.CursorTop;
+            var windowHeight = Console.WindowHeight;
+
+            for (int i = currentTop; i < windowHeight; i++)
+            {
+                Console.SetCursorPosition(0, i);
+                Console.Write(new string(' ', Console.WindowWidth - 1));
+            }
+
+            Console.SetCursorPosition(0, currentTop);
+        }
+        catch
+        {
+            // Fallback if console operations fail
+        }
     }
 }
