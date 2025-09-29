@@ -40,28 +40,47 @@ class Program
 
                 Console.WriteLine("\nCommands:");
                 Console.WriteLine("  [a]dd account  [d]elete account  [v]iew codes  [r]efresh  [q]uit");
+                if (accounts.Count > 0)
+                {
+                    Console.WriteLine($"  [1-{accounts.Count}] view specific account code");
+                }
                 Console.Write("\nChoice: ");
 
-                var input = Console.ReadKey(true).KeyChar.ToString().ToLower();
+                var input = Console.ReadLine()?.Trim().ToLower() ?? "";
+
+                bool handled = false;
 
                 switch (input)
                 {
                     case "a":
                         AddAccount(storage);
+                        handled = true;
                         break;
                     case "d":
                         RemoveAccount(storage);
+                        handled = true;
                         break;
                     case "v":
                         ViewCodes(accounts);
+                        handled = true;
                         break;
                     case "r":
+                        handled = true;
                         break;
                     case "q":
                         return;
+                    default:
+                        // Try to parse as account index
+                        if (int.TryParse(input, out int accountIndex) &&
+                            accountIndex >= 1 && accountIndex <= accounts.Count)
+                        {
+                            ShowSingleCode(accounts[accountIndex - 1]);
+                            handled = true;
+                        }
+                        break;
                 }
 
-                if (input != "a" && input != "d" && input != "v")
+                if (!handled)
                 {
                     Thread.Sleep(1000);
                 }
