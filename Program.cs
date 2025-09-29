@@ -19,72 +19,7 @@ class Program
             var password = GetPassword();
             var storage = new AccountStorage(password, databaseFile);
 
-            while (true)
-            {
-                Console.Clear();
-                Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
-                Console.WriteLine("==========================================");
-
-                Console.WriteLine(GetDatabaseInfo(databaseFile));
-
-                var accounts = storage.LoadAccounts();
-
-                if (accounts.Count == 0)
-                {
-                    Console.WriteLine("No accounts found. Add your first account!");
-                }
-                else
-                {
-                    DisplayAccountList(accounts);
-                }
-
-                Console.WriteLine("\nCommands:");
-                Console.WriteLine("  [a]dd account  [d]elete account  [v]iew codes  [r]efresh  [q]uit");
-                if (accounts.Count > 0)
-                {
-                    Console.WriteLine($"  [1-{accounts.Count}] view specific account code");
-                }
-                Console.Write("\nChoice: ");
-
-                var input = Console.ReadLine()?.Trim().ToLower() ?? "";
-
-                bool handled = false;
-
-                switch (input)
-                {
-                    case "a":
-                        AddAccount(storage);
-                        handled = true;
-                        break;
-                    case "d":
-                        RemoveAccount(storage);
-                        handled = true;
-                        break;
-                    case "v":
-                        ViewCodes(accounts);
-                        handled = true;
-                        break;
-                    case "r":
-                        handled = true;
-                        break;
-                    case "q":
-                        return;
-                    default:
-                        // Try to parse as account index
-                        if (int.TryParse(input, out int accountIndex) &&
-                            accountIndex >= 1 && accountIndex <= accounts.Count)
-                        {
-                            ShowSingleCode(accounts[accountIndex - 1]);
-                            handled = true;
-                        }
-                        break;
-                }
-
-                if (!handled)
-                {
-                    Thread.Sleep(1000);
-                }
-            }
+            RunMainLoop(storage, databaseFile);
         }
         catch (UnauthorizedAccessException)
         {
@@ -101,6 +36,120 @@ class Program
     {
         var fileStatus = File.Exists(databaseFile) ? "" : " (new)";
         return $"Database: {databaseFile}{fileStatus}";
+    }
+
+    static void RunMainLoop(AccountStorage storage, string databaseFile)
+    {
+        var inputBuffer = new StringBuilder();
+        var lastRefresh = DateTime.MinValue;
+
+        while (true)
+        {
+            var now = DateTime.Now;
+
+            // Refresh display every second
+            if ((now - lastRefresh).TotalSeconds >= 1)
+            {
+                RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                lastRefresh = now;
+            }
+
+            // Check for input
+            if (Console.KeyAvailable)
+            {
+                var keyInfo = Console.ReadKey(true);
+
+                if (keyInfo.Key == ConsoleKey.Enter)
+                {
+                    var input = inputBuffer.ToString().Trim().ToLower();
+                    inputBuffer.Clear();
+
+                    if (HandleUserInput(input, storage, databaseFile))
+                    {
+                        return; // Exit application
+                    }
+
+                    // Force immediate refresh after command
+                    RefreshMainDisplay(storage, databaseFile, "");
+                    lastRefresh = DateTime.Now;
+                }
+                else if (keyInfo.Key == ConsoleKey.Backspace)
+                {
+                    if (inputBuffer.Length > 0)
+                    {
+                        inputBuffer.Length--;
+                        RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                        lastRefresh = DateTime.Now;
+                    }
+                }
+                else if (!char.IsControl(keyInfo.KeyChar))
+                {
+                    inputBuffer.Append(keyInfo.KeyChar);
+                    RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString());
+                    lastRefresh = DateTime.Now;
+                }
+            }
+
+            Thread.Sleep(50); // Small delay to prevent excessive CPU usage
+        }
+    }
+
+    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, string currentInput)
+    {
+        Console.Clear();
+        Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
+        Console.WriteLine("==========================================");
+
+        Console.WriteLine(GetDatabaseInfo(databaseFile));
+
+        var accounts = storage.LoadAccounts();
+
+        if (accounts.Count == 0)
+        {
+            Console.WriteLine("No accounts found. Add your first account!");
+        }
+        else
+        {
+            DisplayAccountList(accounts);
+        }
+
+        Console.WriteLine("\nCommands:");
+        Console.WriteLine("  [a]dd account  [d]elete account  [v]iew codes  [r]efresh  [q]uit");
+        if (accounts.Count > 0)
+        {
+            Console.WriteLine($"  [1-{accounts.Count}] view specific account code");
+        }
+        Console.Write($"\nChoice: {currentInput}");
+    }
+
+    static bool HandleUserInput(string input, AccountStorage storage, string databaseFile)
+    {
+        var accounts = storage.LoadAccounts();
+
+        switch (input)
+        {
+            case "a":
+                AddAccount(storage);
+                return false;
+            case "d":
+                RemoveAccount(storage);
+                return false;
+            case "v":
+                ViewCodes(accounts);
+                return false;
+            case "r":
+                return false; // Just refresh
+            case "q":
+                return true; // Exit
+            default:
+                // Try to parse as account index
+                if (int.TryParse(input, out int accountIndex) &&
+                    accountIndex >= 1 && accountIndex <= accounts.Count)
+                {
+                    ShowSingleCode(accounts[accountIndex - 1]);
+                }
+                return false;
+        }
     }
 
     static string GetPassword()
@@ -205,42 +254,73 @@ class Program
 
     static void ShowSingleCode(OtpAccount account)
     {
-        Console.Clear();
-        Console.WriteLine("🔐 OTP Sharp - Code Display");
-        Console.WriteLine("===========================\n");
+        var startTime = DateTime.Now;
+        var lastRefresh = DateTime.MinValue;
+        var lastCode = "";
+        var lastRemaining = 0;
 
-        try
+        while (true)
         {
-            var code = TotpGenerator.GenerateCode(account.Secret);
-            var remaining = TotpGenerator.GetRemainingSeconds();
+            var now = DateTime.Now;
+            var elapsed = (now - startTime).TotalSeconds;
 
-            Console.WriteLine($"Account: {account.Name}");
-            Console.WriteLine($"Code:    {code}");
-            Console.WriteLine($"Time remaining: {remaining}s\n");
-
-            Console.WriteLine("⚠️  Code will auto-hide in 10 seconds...");
-            Console.WriteLine("Press any key to hide immediately and return.");
-
-            // Auto-hide after 10 seconds or on key press
-            var startTime = DateTime.Now;
-            while (!Console.KeyAvailable && (DateTime.Now - startTime).TotalSeconds < 10)
+            // Auto-hide after 10 seconds
+            if (elapsed >= 10)
             {
-                Thread.Sleep(100);
+                break;
             }
 
-            // Clear any pending key press
+            // Refresh display every second or when code changes
+            if ((now - lastRefresh).TotalSeconds >= 1)
+            {
+                try
+                {
+                    var code = TotpGenerator.GenerateCode(account.Secret);
+                    var remaining = TotpGenerator.GetRemainingSeconds();
+
+                    // Only clear and redraw if something changed
+                    if (code != lastCode || remaining != lastRemaining)
+                    {
+                        Console.Clear();
+                        Console.WriteLine("🔐 OTP Sharp - Code Display");
+                        Console.WriteLine("===========================\n");
+
+                        Console.WriteLine($"Account: {account.Name}");
+                        Console.WriteLine($"Code:    {code}");
+                        Console.WriteLine($"Time remaining: {remaining}s\n");
+
+                        var hideIn = Math.Max(0, 10 - (int)elapsed);
+                        Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...");
+                        Console.WriteLine("Press any key to hide immediately and return.");
+
+                        lastCode = code;
+                        lastRemaining = remaining;
+                    }
+                }
+                catch
+                {
+                    Console.Clear();
+                    Console.WriteLine("🔐 OTP Sharp - Code Display");
+                    Console.WriteLine("===========================\n");
+                    Console.WriteLine($"Account: {account.Name}");
+                    Console.WriteLine($"Code:    ERROR");
+                    Console.WriteLine("\n❌ Failed to generate code. Invalid secret key.");
+                    Console.WriteLine("Press any key to continue...");
+                    Console.ReadKey();
+                    return;
+                }
+
+                lastRefresh = now;
+            }
+
+            // Check for key press to exit immediately
             if (Console.KeyAvailable)
             {
                 Console.ReadKey(true);
+                break;
             }
-        }
-        catch
-        {
-            Console.WriteLine($"Account: {account.Name}");
-            Console.WriteLine($"Code:    ERROR");
-            Console.WriteLine("\n❌ Failed to generate code. Invalid secret key.");
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey();
+
+            Thread.Sleep(100);
         }
     }
 
