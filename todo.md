@@ -10,6 +10,8 @@
 
 [ ] Refactor code for better readability
 
+[ ] Add mode options for when adding codes, e.g. different expiry times etc
+
 
 
 
