@@ -40,7 +40,6 @@ class Program
 
     static void RunMainLoop(AccountStorage storage, string databaseFile)
     {
-        var inputBuffer = new StringBuilder();
         var lastRefresh = DateTime.MinValue;
         var visibleCodeIndex = -1; // -1 means no code is visible
         var codeVisibleSince = DateTime.MinValue;
@@ -62,7 +61,7 @@ class Program
             // Refresh display every second
             if ((now - lastRefresh).TotalSeconds >= 1)
             {
-                RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
+                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex);
                 lastRefresh = now;
             }
 
@@ -70,46 +69,25 @@ class Program
             if (Console.KeyAvailable)
             {
                 var keyInfo = Console.ReadKey(true);
+                var keyChar = char.ToLower(keyInfo.KeyChar);
 
-                if (keyInfo.Key == ConsoleKey.Enter)
+                var result = HandleDirectKeyInput(keyInfo, keyChar, storage, databaseFile, ref visibleCodeIndex, ref codeVisibleSince);
+                if (result)
                 {
-                    var input = inputBuffer.ToString().Trim().ToLower();
-                    inputBuffer.Clear();
+                    Console.CursorVisible = true;
+                    return; // Exit application
+                }
 
-                    var result = HandleUserInput(input, storage, databaseFile, ref visibleCodeIndex, ref codeVisibleSince);
-                    if (result)
-                    {
-                        Console.CursorVisible = true;
-                        return; // Exit application
-                    }
-
-                    // Force immediate refresh after command
-                    Console.CursorVisible = false;
-                    RefreshMainDisplay(storage, databaseFile, "", visibleCodeIndex);
-                    lastRefresh = DateTime.Now;
-                }
-                else if (keyInfo.Key == ConsoleKey.Backspace)
-                {
-                    if (inputBuffer.Length > 0)
-                    {
-                        inputBuffer.Length--;
-                        RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
-                        lastRefresh = DateTime.Now;
-                    }
-                }
-                else if (!char.IsControl(keyInfo.KeyChar))
-                {
-                    inputBuffer.Append(keyInfo.KeyChar);
-                    RefreshMainDisplay(storage, databaseFile, inputBuffer.ToString(), visibleCodeIndex);
-                    lastRefresh = DateTime.Now;
-                }
+                // Force immediate refresh after any key press
+                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex);
+                lastRefresh = DateTime.Now;
             }
 
             Thread.Sleep(50); // Small delay to prevent excessive CPU usage
         }
     }
 
-    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, string currentInput, int visibleCodeIndex = -1)
+    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, int visibleCodeIndex = -1)
     {
         Console.SetCursorPosition(0, 0);
         Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
@@ -134,50 +112,50 @@ class Program
         {
             Console.WriteLine($"  [1-{accounts.Count}] show/hide specific account code");
         }
-        Console.Write($"\nChoice: {currentInput}");
+        Console.WriteLine("\nPress any key to execute command...");
 
         // Clear any remaining content from previous display
         ClearToEndOfConsole();
     }
 
-    static bool HandleUserInput(string input, AccountStorage storage, string databaseFile, ref int visibleCodeIndex, ref DateTime codeVisibleSince)
+    static bool HandleDirectKeyInput(ConsoleKeyInfo keyInfo, char keyChar, AccountStorage storage, string databaseFile, ref int visibleCodeIndex, ref DateTime codeVisibleSince)
     {
         var accounts = storage.LoadAccounts();
 
-        switch (input)
+        switch (keyChar)
         {
-            case "a":
+            case 'a':
                 AddAccount(storage);
                 visibleCodeIndex = -1; // Hide any visible code after adding account
                 return false;
-            case "d":
+            case 'd':
                 RemoveAccount(storage);
                 visibleCodeIndex = -1; // Hide any visible code after removing account
                 return false;
-            case "v":
-                visibleCodeIndex = -1; // Hide any visible code
-                return false;
-            case "r":
+            case 'r':
                 visibleCodeIndex = -1; // Hide any visible code on refresh
                 return false; // Just refresh
-            case "q":
+            case 'q':
                 return true; // Exit
             default:
                 // Try to parse as account index
-                if (int.TryParse(input, out int accountIndex) &&
-                    accountIndex >= 1 && accountIndex <= accounts.Count)
+                if (char.IsDigit(keyChar))
                 {
-                    int targetIndex = accountIndex - 1;
+                    int accountIndex = keyChar - '0'; // Convert char to int
+                    if (accountIndex >= 1 && accountIndex <= accounts.Count)
+                    {
+                        int targetIndex = accountIndex - 1;
 
-                    // Toggle: if this code is already visible, hide it; otherwise show it
-                    if (visibleCodeIndex == targetIndex)
-                    {
-                        visibleCodeIndex = -1; // Hide the code
-                    }
-                    else
-                    {
-                        visibleCodeIndex = targetIndex; // Show this code
-                        codeVisibleSince = DateTime.Now;
+                        // Toggle: if this code is already visible, hide it; otherwise show it
+                        if (visibleCodeIndex == targetIndex)
+                        {
+                            visibleCodeIndex = -1; // Hide the code
+                        }
+                        else
+                        {
+                            visibleCodeIndex = targetIndex; // Show this code
+                            codeVisibleSince = DateTime.Now;
+                        }
                     }
                 }
                 return false;
