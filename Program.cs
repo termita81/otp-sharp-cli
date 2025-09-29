@@ -198,7 +198,7 @@ class Program
     static void DisplayAccountList(List<OtpAccount> accounts)
     {
         var remaining = TotpGenerator.GetRemainingSeconds();
-        Console.WriteLine($"Time remaining: {remaining}s\n");
+        Console.WriteLine($"Time remaining: {remaining,2}s\n");
         Console.WriteLine("Accounts (codes hidden for security):");
 
         for (int i = 0; i < accounts.Count; i++)
@@ -224,7 +224,7 @@ class Program
             Console.WriteLine("========================");
 
             var remaining = TotpGenerator.GetRemainingSeconds();
-            Console.WriteLine($"Time remaining: {remaining}s\n");
+            Console.WriteLine($"Time remaining: {remaining,2}s\n");
 
             Console.WriteLine("Select account to view code (codes auto-hide after 10 seconds):");
             for (int i = 0; i < accounts.Count; i++)
@@ -308,7 +308,7 @@ class Program
 
                         Console.WriteLine($"Account: {account.Name}");
                         Console.WriteLine($"Code:    {code}");
-                        Console.WriteLine($"Time remaining: {remaining}s\n");
+                        Console.WriteLine($"Time remaining: {remaining,2}s\n");
 
                         Console.WriteLine($"⚠️  Code will auto-hide in {hideIn} seconds...");
                         Console.WriteLine("Press any key to hide immediately and return.");
