@@ -107,7 +107,7 @@ class Program
         }
 
         Console.WriteLine("\nCommands:");
-        Console.WriteLine("  [a]dd account  [d]elete account  [c]opy code  [r]efresh  [q]uit");
+        Console.WriteLine("  [a]dd account  [d]elete account  [c]opy code  [q]uit");
         if (accounts.Count > 0)
         {
             Console.WriteLine($"  [1-{accounts.Count}] show/hide specific account code");
@@ -142,9 +142,6 @@ class Program
                     ShowTemporaryMessage("❌ No code visible to copy");
                 }
                 return false;
-            case 'r':
-                visibleCodeIndex = -1; // Hide any visible code on refresh
-                return false; // Just refresh
             case 'q':
                 return true; // Exit
             default:
