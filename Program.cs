@@ -61,7 +61,7 @@ class Program
             // Refresh display every second
             if ((now - lastRefresh).TotalSeconds >= 1)
             {
-                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex);
+                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex, codeVisibleSince);
                 lastRefresh = now;
             }
 
@@ -79,7 +79,7 @@ class Program
                 }
 
                 // Force immediate refresh after any key press
-                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex);
+                RefreshMainDisplay(storage, databaseFile, visibleCodeIndex, codeVisibleSince);
                 lastRefresh = DateTime.Now;
             }
 
@@ -87,7 +87,7 @@ class Program
         }
     }
 
-    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, int visibleCodeIndex = -1)
+    static void RefreshMainDisplay(AccountStorage storage, string databaseFile, int visibleCodeIndex = -1, DateTime codeVisibleSince = default)
     {
         Console.SetCursorPosition(0, 0);
         Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
@@ -103,7 +103,7 @@ class Program
         }
         else
         {
-            DisplayAccountList(accounts, visibleCodeIndex);
+            DisplayAccountList(accounts, visibleCodeIndex, codeVisibleSince);
         }
 
         Console.WriteLine("\nCommands:");
@@ -203,35 +203,35 @@ class Program
         return password.ToString();
     }
 
-    static void DisplayAccountList(List<OtpAccount> accounts, int visibleCodeIndex = -1)
+    static void DisplayAccountList(List<OtpAccount> accounts, int visibleCodeIndex = -1, DateTime codeVisibleSince = default)
     {
         var remaining = TotpGenerator.GetRemainingSeconds();
-        Console.WriteLine($"Time remaining: {remaining,2}s\n");
+        Console.WriteLine($"Time to new codes: {remaining,2}s\n");
         Console.WriteLine("Accounts:");
 
         for (int i = 0; i < accounts.Count; i++)
         {
             var accountName = accounts[i].Name.PadRight(20);
 
+            var timerText = new StringBuilder(" ");
+            var code = "●●●●●●";
+
             if (visibleCodeIndex == i)
             {
-                try
-                {
-                    var code = TotpGenerator.GenerateCode(accounts[i].Secret);
-                    Console.WriteLine($"{i + 1}. {accountName} {code}");
-                }
-                catch
-                {
-                    Console.WriteLine($"{i + 1}. {accountName} ERROR");
-                }
+                code = TotpGenerator.GenerateCode(accounts[i].Secret);
+
+                var secondsVisible = (int)(DateTime.Now - codeVisibleSince).TotalSeconds;
+
+                timerText.Append($"{new string('#', 10 - secondsVisible).PadRight(10, ' ')}");
             }
             else
             {
-                Console.WriteLine($"{i + 1}. {accountName} ●●●●●●");
+                timerText.Append(new string(' ', 10));
             }
+            Console.WriteLine($"{i + 1}. {accountName} {code} {timerText}");
+
         }
     }
-
 
     static void AddAccount(AccountStorage storage)
     {
