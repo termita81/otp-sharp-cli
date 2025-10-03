@@ -1,7 +1,6 @@
 using System.Text;
-using OtpSharp;
 
-namespace OtpSharp;
+namespace OtpSharpCli;
 
 public class ConsoleUI
 {
@@ -137,5 +136,99 @@ public class ConsoleUI
         Console.Write(message);
 
         Console.SetCursorPosition(originalLeft, originalTop);
+    }
+
+    public (string? name, string? secret) GetAccountInput()
+    {
+        Console.WriteLine("\n--- Add New Account ---");
+        Console.Write("Account name: ");
+        var name = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrEmpty(name))
+        {
+            ShowMessage("Invalid name.");
+            return (null, null);
+        }
+
+        Console.Write("Secret key (Base32): ");
+        var secret = Console.ReadLine()?.Trim().Replace(" ", "").Replace("-", "");
+
+        if (string.IsNullOrEmpty(secret))
+        {
+            ShowMessage("Invalid secret.");
+            return (null, null);
+        }
+
+        return (name, secret);
+    }
+
+    public bool ConfirmTestCode(string testCode)
+    {
+        Console.WriteLine($"Test code: {testCode}");
+        Console.Write("Does this match your authenticator app? (y/n): ");
+
+        var confirm = Console.ReadKey().KeyChar;
+        Console.WriteLine();
+
+        return confirm == 'y' || confirm == 'Y';
+    }
+
+    public string? SelectAccountToRemove(List<OtpAccount> accounts)
+    {
+        if (accounts.Count == 0)
+        {
+            Console.WriteLine("\n--- Remove Account ---");
+            Console.WriteLine("No accounts to remove.");
+            WaitForKey();
+            return null;
+        }
+
+        Console.WriteLine("\n--- Remove Account ---");
+        Console.WriteLine("Select account to remove:");
+
+        for (int i = 0; i < accounts.Count; i++)
+        {
+            Console.WriteLine($"{i + 1}. {accounts[i].Name}");
+        }
+
+        Console.Write($"\nEnter number (1-{accounts.Count}) or 0 to cancel: ");
+        var input = Console.ReadLine();
+
+        if (int.TryParse(input, out int choice) && choice >= 1 && choice <= accounts.Count)
+        {
+            return accounts[choice - 1].Name;
+        }
+
+        if (choice == 0)
+        {
+            ShowMessage("Account removal cancelled.");
+        }
+        else
+        {
+            ShowMessage("ERROR: Invalid selection.");
+        }
+
+        return null;
+    }
+
+    public bool ConfirmRemoval(string accountName)
+    {
+        Console.Write($"Are you sure you want to remove '{accountName}'? (y/n): ");
+        var confirm = Console.ReadKey().KeyChar;
+        Console.WriteLine();
+
+        return confirm == 'y' || confirm == 'Y';
+    }
+
+    public void ShowMessage(string message)
+    {
+        Console.WriteLine(message);
+        WaitForKey();
+    }
+
+    public void WaitForKey()
+    {
+        Console.WriteLine("Press any key to continue...");
+        Console.ReadKey();
     }
 }

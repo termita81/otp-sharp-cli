@@ -1,4 +1,4 @@
-namespace OtpSharp;
+namespace OtpSharpCli;
 
 public class OtpAccount
 {

@@ -1,6 +1,4 @@
-using OtpSharp;
-
-namespace OtpSharp;
+namespace OtpSharpCli;
 
 public class ClipboardHelper
 {

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace OtpSharp;
+namespace OtpSharpCli;
 
 public class AccountStorage
 {
