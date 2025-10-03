@@ -127,10 +127,12 @@ class Program
             case 'a':
                 AddAccount(storage);
                 visibleCodeIndex = -1; // Hide any visible code after adding account
+                Console.Clear();
                 return false;
             case 'd':
                 RemoveAccount(storage);
                 visibleCodeIndex = -1; // Hide any visible code after removing account
+                Console.Clear();
                 return false;
             case 'c':
                 if (CopyCodeToClipboard(accounts, visibleCodeIndex))
