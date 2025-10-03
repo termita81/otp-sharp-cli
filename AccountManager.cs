@@ -1,6 +1,4 @@
-using OtpSharp;
-
-namespace OtpSharp;
+namespace OtpSharpCli;
 
 public class AccountManager
 {
@@ -11,115 +9,54 @@ public class AccountManager
         _storage = storage;
     }
 
-    public void AddAccount()
+    public bool AddAccount(string name, string secret)
     {
-        Console.WriteLine("\n--- Add New Account ---");
-        Console.Write("Account name: ");
-        var name = Console.ReadLine()?.Trim();
-
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(secret))
         {
-            Console.WriteLine("Invalid name. Press any key to continue...");
-            Console.ReadKey();
-            return;
-        }
-
-        Console.Write("Secret key (Base32): ");
-        var secret = Console.ReadLine()?.Trim().Replace(" ", "").Replace("-", "");
-
-        if (string.IsNullOrEmpty(secret))
-        {
-            Console.WriteLine("Invalid secret. Press any key to continue...");
-            Console.ReadKey();
-            return;
+            return false;
         }
 
         try
         {
-            var testCode = TotpGenerator.GenerateCode(secret);
-            Console.WriteLine($"Test code: {testCode}");
-            Console.Write("Does this match your authenticator app? (y/n): ");
-
-            var confirm = Console.ReadKey().KeyChar;
-            Console.WriteLine();
-
-            if (confirm == 'y' || confirm == 'Y')
-            {
-                _storage.AddAccount(name, secret);
-                Console.WriteLine("Account added successfully!");
-            }
-            else
-            {
-                Console.WriteLine("Account not added.");
-            }
+            _storage.AddAccount(name, secret);
+            return true;
         }
         catch
         {
-            Console.WriteLine("ERROR: Invalid secret key format.");
+            return false;
         }
-
-        Console.WriteLine("Press any key to continue...");
-        Console.ReadKey();
     }
 
-    public void RemoveAccount()
+    public bool RemoveAccount(string accountName)
     {
-        var accounts = _storage.LoadAccounts();
-
-        if (accounts.Count == 0)
+        if (string.IsNullOrWhiteSpace(accountName))
         {
-            Console.WriteLine("\n--- Remove Account ---");
-            Console.WriteLine("No accounts to remove.");
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey();
-            return;
+            return false;
         }
 
-        Console.WriteLine("\n--- Remove Account ---");
-        Console.WriteLine("Select account to remove:");
+        return _storage.RemoveAccount(accountName);
+    }
 
-        for (int i = 0; i < accounts.Count; i++)
+    public List<OtpAccount> GetAccounts()
+    {
+        return _storage.LoadAccounts();
+    }
+
+    public bool ValidateSecret(string secret)
+    {
+        try
         {
-            Console.WriteLine($"{i + 1}. {accounts[i].Name}");
+            TotpGenerator.GenerateCode(secret);
+            return true;
         }
-
-        Console.Write($"\nEnter number (1-{accounts.Count}) or 0 to cancel: ");
-        var input = Console.ReadLine();
-
-        if (int.TryParse(input, out int choice) && choice >= 1 && choice <= accounts.Count)
+        catch
         {
-            var accountName = accounts[choice - 1].Name;
-            Console.Write($"Are you sure you want to remove '{accountName}'? (y/n): ");
-
-            var confirm = Console.ReadKey().KeyChar;
-            Console.WriteLine();
-
-            if (confirm == 'y' || confirm == 'Y')
-            {
-                if (_storage.RemoveAccount(accountName))
-                {
-                    Console.WriteLine("Account removed successfully!");
-                }
-                else
-                {
-                    Console.WriteLine("ERROR: Failed to remove account.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Account removal cancelled.");
-            }
+            return false;
         }
-        else if (choice == 0)
-        {
-            Console.WriteLine("Account removal cancelled.");
-        }
-        else
-        {
-            Console.WriteLine("ERROR: Invalid selection.");
-        }
+    }
 
-        Console.WriteLine("Press any key to continue...");
-        Console.ReadKey();
+    public string GenerateTestCode(string secret)
+    {
+        return TotpGenerator.GenerateCode(secret);
     }
 }

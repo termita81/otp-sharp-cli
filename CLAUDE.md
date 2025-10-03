@@ -44,7 +44,7 @@ The application follows a simple modular design with clear separation of concern
 
 ## Project Configuration
 
-- **Target Framework**: .NET 10.0
+- **Target Framework**: .NET 9.0
 - **Project Type**: Console application
 - **Namespace**: `OtpSharp`
 - **Features**: Nullable reference types enabled, implicit usings enabled
@@ -52,3 +52,7 @@ The application follows a simple modular design with clear separation of concern
 ## File Structure
 
 The codebase uses a flat structure with all source files in the root directory. The database file (default: `otp-accounts.json`) is created in the user's home directory or specified via command line argument.
+
+## Tasks
+
+Always update structure.md with the current structure of the app.
