@@ -50,7 +50,7 @@ public class ConsoleUI
             var accountName = accounts[i].Name.PadRight(20);
 
             var timerText = new StringBuilder(" ");
-            var code = "●●●●●●";
+            var code = "******";
 
             if (visibleCodeIndex == i)
             {
@@ -72,7 +72,7 @@ public class ConsoleUI
     public void RefreshMainDisplay(AccountStorage storage, string databaseFile, int visibleCodeIndex = -1, DateTime codeVisibleSince = default)
     {
         Console.SetCursorPosition(0, 0);
-        Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
+        Console.WriteLine("OTP Sharp - One-Time Password Generator");
         Console.WriteLine("==========================================");
 
         Console.WriteLine(GetDatabaseInfo(databaseFile));

@@ -46,16 +46,16 @@ public class AccountManager
             if (confirm == 'y' || confirm == 'Y')
             {
                 _storage.AddAccount(name, secret);
-                Console.WriteLine("✅ Account added successfully!");
+                Console.WriteLine("Account added successfully!");
             }
             else
             {
-                Console.WriteLine("❌ Account not added.");
+                Console.WriteLine("Account not added.");
             }
         }
         catch
         {
-            Console.WriteLine("❌ Invalid secret key format.");
+            Console.WriteLine("ERROR: Invalid secret key format.");
         }
 
         Console.WriteLine("Press any key to continue...");
@@ -98,25 +98,25 @@ public class AccountManager
             {
                 if (_storage.RemoveAccount(accountName))
                 {
-                    Console.WriteLine("✅ Account removed successfully!");
+                    Console.WriteLine("Account removed successfully!");
                 }
                 else
                 {
-                    Console.WriteLine("❌ Failed to remove account.");
+                    Console.WriteLine("ERROR: Failed to remove account.");
                 }
             }
             else
             {
-                Console.WriteLine("❌ Account removal cancelled.");
+                Console.WriteLine("Account removal cancelled.");
             }
         }
         else if (choice == 0)
         {
-            Console.WriteLine("❌ Account removal cancelled.");
+            Console.WriteLine("Account removal cancelled.");
         }
         else
         {
-            Console.WriteLine("❌ Invalid selection.");
+            Console.WriteLine("ERROR: Invalid selection.");
         }
 
         Console.WriteLine("Press any key to continue...");
