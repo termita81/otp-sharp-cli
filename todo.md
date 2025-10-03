@@ -2,7 +2,7 @@
 
 [v] Allow the app to be navigated without any Enter key presses
 
-[ ] Replace Thread.Sleep with tasks?
+[x] Replace Thread.Sleep with tasks?
 
 [ ] Review code for security
 
