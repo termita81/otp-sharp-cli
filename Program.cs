@@ -4,7 +4,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("🔐 OTP Sharp - One-Time Password Generator");
+        Console.WriteLine("OTP Sharp - One-Time Password Generator");
         Console.WriteLine("==========================================");
 
         try
@@ -26,11 +26,11 @@ class Program
         }
         catch (UnauthorizedAccessException)
         {
-            Console.WriteLine("❌ Invalid password or corrupted database");
+            Console.WriteLine("ERROR: Invalid password or corrupted database");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error: {ex.Message}");
+            Console.WriteLine($"ERROR: {ex.Message}");
         }
     }
 
@@ -97,11 +97,11 @@ class Program
             case 'c':
                 if (clipboardHelper.CopyCodeToClipboard(accounts, visibleCodeIndex))
                 {
-                    consoleUI.ShowTemporaryMessage("📋 Code copied to clipboard!");
+                    consoleUI.ShowTemporaryMessage("Code copied to clipboard!");
                 }
                 else
                 {
-                    consoleUI.ShowTemporaryMessage("❌ No code visible to copy");
+                    consoleUI.ShowTemporaryMessage("ERROR: No code visible to copy");
                 }
                 return false;
             case 'q':
