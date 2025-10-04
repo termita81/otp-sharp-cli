@@ -18,21 +18,28 @@ public static class CryptoHelper
 
         var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
 
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = iv;
-
-        var dataBytes = Encoding.UTF8.GetBytes(data);
-        var encryptedData = aes.EncryptCbc(dataBytes, iv);
-
-        var result = new EncryptedData
+        try
         {
-            Salt = Convert.ToBase64String(salt),
-            Iv = Convert.ToBase64String(iv),
-            Data = Convert.ToBase64String(encryptedData)
-        };
+            using var aes = Aes.Create();
+            aes.Key = key;
+            aes.IV = iv;
 
-        return JsonSerializer.Serialize(result);
+            var dataBytes = Encoding.UTF8.GetBytes(data);
+            var encryptedData = aes.EncryptCbc(dataBytes, iv);
+
+            var result = new EncryptedData
+            {
+                Salt = Convert.ToBase64String(salt),
+                Iv = Convert.ToBase64String(iv),
+                Data = Convert.ToBase64String(encryptedData)
+            };
+
+            return JsonSerializer.Serialize(result);
+        }
+        finally
+        {
+            Array.Clear(key, 0, key.Length);
+        }
     }
 
     public static string DecryptData(string encryptedJson, string password)
@@ -45,12 +52,19 @@ public static class CryptoHelper
 
         var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
 
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = iv;
+        try
+        {
+            using var aes = Aes.Create();
+            aes.Key = key;
+            aes.IV = iv;
 
-        var decryptedData = aes.DecryptCbc(data, iv);
-        return Encoding.UTF8.GetString(decryptedData);
+            var decryptedData = aes.DecryptCbc(data, iv);
+            return Encoding.UTF8.GetString(decryptedData);
+        }
+        finally
+        {
+            Array.Clear(key, 0, key.Length);
+        }
     }
 
     private class EncryptedData
