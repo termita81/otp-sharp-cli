@@ -64,7 +64,31 @@ public static class CryptoHelper
 
     public static string DecryptData(string encryptedJson, SecureString password)
     {
-        var encryptedData = JsonSerializer.Deserialize<EncryptedData>(encryptedJson)!;
+        if (string.IsNullOrWhiteSpace(encryptedJson))
+            throw new ArgumentException("Encrypted data cannot be null or empty");
+
+        EncryptedData? encryptedData;
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                MaxDepth = 5,
+                PropertyNameCaseInsensitive = false
+            };
+            encryptedData = JsonSerializer.Deserialize<EncryptedData>(encryptedJson, options);
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException("Invalid encrypted data format", ex);
+        }
+
+        if (encryptedData?.Salt == null || encryptedData.Iv == null || encryptedData.Data == null)
+            throw new ArgumentException("Incomplete encrypted data");
+
+        if (!IsValidBase64(encryptedData.Salt) ||
+            !IsValidBase64(encryptedData.Iv) ||
+            !IsValidBase64(encryptedData.Data))
+            throw new ArgumentException("Invalid Base64 encoding in encrypted data");
 
         var salt = Convert.FromBase64String(encryptedData.Salt);
         var iv = Convert.FromBase64String(encryptedData.Iv);
@@ -123,6 +147,22 @@ public static class CryptoHelper
         {
             if (ptr != IntPtr.Zero)
                 Marshal.ZeroFreeGlobalAllocUnicode(ptr);
+        }
+    }
+
+    private static bool IsValidBase64(string base64)
+    {
+        if (string.IsNullOrWhiteSpace(base64))
+            return false;
+
+        try
+        {
+            Convert.FromBase64String(base64);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
