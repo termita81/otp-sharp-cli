@@ -1,41 +1,53 @@
+using System.Security;
 using System.Text;
 
 namespace OtpSharpCli;
 
 public class ConsoleUI
 {
-    public string GetPassword()
+    public SecureString GetPassword()
     {
         Console.Write("Enter master password: ");
+        var securePassword = new SecureString();
 
-        if (Console.IsInputRedirected) return Console.ReadLine() ?? "";
-
-        var password = new StringBuilder();
-
-        while (true)
+        if (!Console.IsInputRedirected)
         {
-            var key = Console.ReadKey(true);
-
-            if (key.Key == ConsoleKey.Enter)
-                break;
-
-            if (key.Key == ConsoleKey.Backspace)
+            while (true)
             {
-                if (password.Length > 0)
+                var key = Console.ReadKey(true);
+
+                if (key.Key == ConsoleKey.Enter)
+                    break;
+
+                if (key.Key == ConsoleKey.Backspace)
                 {
-                    password.Length--;
-                    Console.Write("\b \b");
+                    if (securePassword.Length > 0)
+                    {
+                        securePassword.RemoveAt(securePassword.Length - 1);
+                        Console.Write("\b \b");
+                    }
+                }
+                else if (!char.IsControl(key.KeyChar))
+                {
+                    securePassword.AppendChar(key.KeyChar);
+                    Console.Write("*");
                 }
             }
-            else if (!char.IsControl(key.KeyChar))
-            {
-                password.Append(key.KeyChar);
-                Console.Write("*");
-            }
-        }
 
-        Console.WriteLine();
-        return password.ToString();
+            Console.WriteLine();
+            securePassword.MakeReadOnly();
+            return securePassword;
+        }
+        else
+        {
+            var password = Console.ReadLine() ?? "";
+            foreach (char c in password)
+            {
+                securePassword.AppendChar(c);
+            }
+            securePassword.MakeReadOnly();
+            return securePassword;
+        }
     }
 
     public void DisplayAccountList(List<OtpAccount> accounts, int visibleCodeIndex = -1, DateTime codeVisibleSince = default)

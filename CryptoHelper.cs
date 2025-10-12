@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -11,38 +13,56 @@ public static class CryptoHelper
     private const int KeySize = 32;
     private const int Iterations = 100000;
 
-    public static string EncryptData(string data, string password)
+    public static string EncryptData(string data, SecureString password)
     {
         var salt = RandomNumberGenerator.GetBytes(SaltSize);
         var iv = RandomNumberGenerator.GetBytes(IvSize);
 
-        var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
+        byte[]? key = null;
+        IntPtr passwordPtr = IntPtr.Zero;
 
         try
         {
-            using var aes = Aes.Create();
-            aes.Key = key;
-            aes.IV = iv;
+            passwordPtr = Marshal.SecureStringToGlobalAllocUnicode(password);
+            var passwordBytes = SecureStringToBytes(password);
 
-            var dataBytes = Encoding.UTF8.GetBytes(data);
-            var encryptedData = aes.EncryptCbc(dataBytes, iv);
-
-            var result = new EncryptedData
+            try
             {
-                Salt = Convert.ToBase64String(salt),
-                Iv = Convert.ToBase64String(iv),
-                Data = Convert.ToBase64String(encryptedData)
-            };
+                key = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
 
-            return JsonSerializer.Serialize(result);
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.IV = iv;
+
+                var dataBytes = Encoding.UTF8.GetBytes(data);
+                var encryptedData = aes.EncryptCbc(dataBytes, iv);
+
+                var result = new EncryptedData
+                {
+                    Salt = Convert.ToBase64String(salt),
+                    Iv = Convert.ToBase64String(iv),
+                    Data = Convert.ToBase64String(encryptedData)
+                };
+
+                return JsonSerializer.Serialize(result);
+            }
+            finally
+            {
+                if (passwordBytes != null)
+                    Array.Clear(passwordBytes, 0, passwordBytes.Length);
+            }
         }
         finally
         {
-            Array.Clear(key, 0, key.Length);
+            if (key != null)
+                Array.Clear(key, 0, key.Length);
+
+            if (passwordPtr != IntPtr.Zero)
+                Marshal.ZeroFreeGlobalAllocUnicode(passwordPtr);
         }
     }
 
-    public static string DecryptData(string encryptedJson, string password)
+    public static string DecryptData(string encryptedJson, SecureString password)
     {
         var encryptedData = JsonSerializer.Deserialize<EncryptedData>(encryptedJson)!;
 
@@ -50,20 +70,59 @@ public static class CryptoHelper
         var iv = Convert.FromBase64String(encryptedData.Iv);
         var data = Convert.FromBase64String(encryptedData.Data);
 
-        var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
+        byte[]? key = null;
+        IntPtr passwordPtr = IntPtr.Zero;
 
         try
         {
-            using var aes = Aes.Create();
-            aes.Key = key;
-            aes.IV = iv;
+            passwordPtr = Marshal.SecureStringToGlobalAllocUnicode(password);
+            var passwordBytes = SecureStringToBytes(password);
 
-            var decryptedData = aes.DecryptCbc(data, iv);
-            return Encoding.UTF8.GetString(decryptedData);
+            try
+            {
+                key = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, Iterations, HashAlgorithmName.SHA256, KeySize);
+
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.IV = iv;
+
+                var decryptedData = aes.DecryptCbc(data, iv);
+                return Encoding.UTF8.GetString(decryptedData);
+            }
+            finally
+            {
+                if (passwordBytes != null)
+                    Array.Clear(passwordBytes, 0, passwordBytes.Length);
+            }
         }
         finally
         {
-            Array.Clear(key, 0, key.Length);
+            if (key != null)
+                Array.Clear(key, 0, key.Length);
+
+            if (passwordPtr != IntPtr.Zero)
+                Marshal.ZeroFreeGlobalAllocUnicode(passwordPtr);
+        }
+    }
+
+    private static byte[] SecureStringToBytes(SecureString secureString)
+    {
+        IntPtr ptr = IntPtr.Zero;
+        try
+        {
+            ptr = Marshal.SecureStringToGlobalAllocUnicode(secureString);
+            var length = secureString.Length;
+            var bytes = new byte[length * 2];
+            Marshal.Copy(ptr, bytes, 0, bytes.Length);
+
+            var utf8Bytes = Encoding.UTF8.GetBytes(Encoding.Unicode.GetString(bytes));
+            Array.Clear(bytes, 0, bytes.Length);
+            return utf8Bytes;
+        }
+        finally
+        {
+            if (ptr != IntPtr.Zero)
+                Marshal.ZeroFreeGlobalAllocUnicode(ptr);
         }
     }
 
