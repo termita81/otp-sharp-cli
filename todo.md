@@ -4,14 +4,13 @@
 
 [x] Replace Thread.Sleep with tasks?
 
-[ ] Review code for security
+[v] Review code for security
 
 [ ] Review code for other issues
 
-[ ] Refactor code for better readability
+[v] Refactor code for better readability
 
 [ ] Add mode options for when adding codes, e.g. different expiry times etc
-
 
 
 

@@ -9,9 +9,7 @@ class Program
 
         try
         {
-            var databaseFile = args.Length > 0
-                ? args[0]
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "otp-accounts.json");
+            var databaseFile = GetSafeDatabasePath(args);
 
             var ui = new ConsoleUI();
             Console.WriteLine(ui.GetDatabaseInfo(databaseFile));
@@ -30,5 +28,36 @@ class Program
         {
             Console.WriteLine($"ERROR: {ex.Message}");
         }
+    }
+
+    static string GetSafeDatabasePath(string[] args)
+    {
+        string databaseFile;
+
+        if (args.Length > 0)
+        {
+            var userPath = args[0];
+
+            if (string.IsNullOrWhiteSpace(userPath))
+                throw new ArgumentException("Database file path cannot be empty");
+
+            var fullPath = Path.GetFullPath(userPath);
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+            if (!fullPath.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase) &&
+                !fullPath.StartsWith(appData, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException("Database file must be within user profile or application data directories");
+            }
+
+            databaseFile = fullPath;
+        }
+        else
+        {
+            databaseFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "otp-accounts.json");
+        }
+
+        return databaseFile;
     }
 }

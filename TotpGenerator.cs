@@ -48,7 +48,13 @@ public static class TotpGenerator
 
     private static byte[] Base32Decode(string base32)
     {
+        if (string.IsNullOrWhiteSpace(base32))
+            throw new ArgumentException("Base32 string cannot be null or empty");
+
         base32 = base32.Replace(" ", "").Replace("-", "").ToUpper();
+
+        if (base32.Length == 0)
+            throw new ArgumentException("Base32 string is empty after cleanup");
 
         var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         var bits = new StringBuilder();
@@ -56,9 +62,13 @@ public static class TotpGenerator
         foreach (var c in base32)
         {
             var value = alphabet.IndexOf(c);
-            if (value < 0) continue;
+            if (value < 0)
+                throw new ArgumentException($"Invalid Base32 character: {c}");
             bits.Append(Convert.ToString(value, 2).PadLeft(5, '0'));
         }
+
+        if (bits.Length % 8 != 0 && bits.Length % 8 > 5)
+            throw new ArgumentException("Invalid Base32 string length");
 
         var result = new List<byte>();
         for (int i = 0; i < bits.Length; i += 8)
@@ -69,6 +79,9 @@ public static class TotpGenerator
                 result.Add(Convert.ToByte(byteString, 2));
             }
         }
+
+        if (result.Count == 0)
+            throw new ArgumentException("Base32 decoding resulted in empty data");
 
         return result.ToArray();
     }

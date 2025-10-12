@@ -1,3 +1,4 @@
+using System.Security;
 using System.Text.Json;
 
 namespace OtpSharpCli;
@@ -5,9 +6,9 @@ namespace OtpSharpCli;
 public class AccountStorage
 {
     private readonly string _databaseFile;
-    private readonly string _password;
+    private readonly SecureString _password;
 
-    public AccountStorage(string password, string databaseFile)
+    public AccountStorage(SecureString password, string databaseFile)
     {
         _password = password;
         _databaseFile = databaseFile;
