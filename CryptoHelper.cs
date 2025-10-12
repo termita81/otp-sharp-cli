@@ -11,7 +11,7 @@ public static class CryptoHelper
     private const int SaltSize = 16;
     private const int IvSize = 16;
     private const int KeySize = 32;
-    private const int Iterations = 100000;
+    private const int Iterations = 300000;
 
     public static string EncryptData(string data, SecureString password)
     {
