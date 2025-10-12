@@ -14,7 +14,6 @@
 
 
 
-
 **Helper code**
 
 Generate mock 52-long strings of alpha-digit chars, in JS - for testing some things in the app
